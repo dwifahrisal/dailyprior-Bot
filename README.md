@@ -1,4 +1,4 @@
-# 🤖 Bot Swap Prior Testnet 24 Jam
+# 🤖 Swap Prior 24 Jam
 
 Bot ini bakal ngejalanin swap otomatis setiap 24 jam buat dapetin poin dari Prior Testnet. Bisa jalanin 1 wallet aja (single) atau banyak wallet sekaligus (multi-wallet).
 
