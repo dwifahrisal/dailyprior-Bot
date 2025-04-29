@@ -53,10 +53,11 @@ WALLETS=[
 
 ## ▶️ Cara Jalanin Bot
 
+isi sesuai format
 ```bash
 nano .env
 ```
-isi sesuai format
+
 
 ```bash
 node index.js
