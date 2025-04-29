@@ -58,6 +58,7 @@ isi sesuai format
 nano .env
 ```
 
+Run
 
 ```bash
 node index.js
