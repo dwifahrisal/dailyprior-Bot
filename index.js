@@ -172,7 +172,7 @@ async function prosesWallet(walletData, index, total) {
   for (let i = 0; i < JUMLAH_SWAP; i++) {
     const swapData = await swapToken(wallet.address);
     tampilkanDetailTransaksi(swapData); // Tampilkan detail setelah swap
-    await new Promise(r => setTimeout(r, Math.floor(Math.random() * (6000 - 2000) + 2000))); // Jeda 3-6 detik
+    await new Promise(r => setTimeout(r, Math.floor(Math.random() * (6000 - 3000) + 5000))); // Jeda 3-6 detik
   }
 }
 
@@ -183,7 +183,7 @@ async function mulaiBot() {
     for (let i = 0; i < WALLETS.length; i++) {
       await prosesWallet(WALLETS[i], i, WALLETS.length);
       console.log('➡️ Lanjut ke wallet berikutnya...');
-      await new Promise(r => setTimeout(r, 5000)); // Menunggu 10 detik antar wallet
+      await new Promise(r => setTimeout(r, 10000)); // Menunggu 10 detik antar wallet
     }
     console.log('🕒 Menunggu 24 jam untuk siklus berikutnya...');
     await new Promise(resolve => setTimeout(resolve, 24 * 60 * 60 * 1000)); // Menunggu 24 jam
