@@ -1,7 +1,6 @@
 require('dotenv').config();
 const axios = require('axios');
 const { ethers } = require('ethers');
-const fs = require('fs');
 
 const API_BASE_URL = 'https://priortestnet.xyz/api';
 const JUMLAH_SWAP = 5;
@@ -10,7 +9,6 @@ const KONTRAK_PRIOR = '0xefc91c5a51e8533282486fa2601dffe0a0b16edb';
 const SALDO_MINIMUM_PRIOR = '0.25';
 const provider = new ethers.JsonRpcProvider('https://sepolia.base.org');
 
-// Read proxies from proxies.txt (no longer necessary, so we can remove it)
 function ambilWallet() {
   if (process.env.WALLETS) {
     return JSON.parse(process.env.WALLETS);
@@ -32,14 +30,6 @@ const headers = {
   'user-agent': 'Mozilla/5.0'
 };
 
-// Remove proxy handling code
-function buatAxiosInstance() {
-  return axios.create({
-    baseURL: API_BASE_URL,
-    headers: headers
-  });
-}
-
 function buatWallet(privateKey) {
   return new ethers.Wallet(privateKey, provider);
 }
@@ -52,6 +42,22 @@ async function cekSaldoPrior(walletAddress) {
   );
   const saldo = await kontrak.balanceOf(walletAddress);
   return parseFloat(ethers.formatUnits(saldo, 18));
+}
+
+async function klaimFaucet(address) {
+  try {
+    const res = await axios.post(`${API_BASE_URL}/faucet/claim`, { address }, { headers });
+    console.log(`✅ Faucet berhasil diklaim untuk alamat: ${address}`);
+    // Jeda 2-3 detik setelah klaim faucet
+    await new Promise(r => setTimeout(r, Math.floor(Math.random() * 1000) + 2000)); // Jeda acak 2-3 detik
+    return true;
+  } catch (error) {
+    if (error.response?.status === 400 && error.response?.data?.message.includes('24 hours')) {
+      console.log(`⚠️ Faucet sudah diklaim 24 jam terakhir untuk ${address}`);
+      return false;
+    }
+    throw error;
+  }
 }
 
 function tampilkanDetailTransaksi(data) {
@@ -74,18 +80,18 @@ function tampilkanDetailTransaksi(data) {
 
 async function swapToken(address) {
   const txHash = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
-  const axiosInstance = buatAxiosInstance();
-
-  const res = await axiosInstance.post('/swap', {
+  const res = await axios.post(`${API_BASE_URL}/swap`, {
     address,
     amount: JUMLAH_TOKEN_SWAP,
     tokenFrom: "PRIOR",
     tokenTo: "USDC",
     txHash
-  });
-
+  }, { headers });
+  
   console.log(`🔄 Swap berhasil untuk wallet: ${address} ✅`);
-  tampilkanDetailTransaksi(res.data);
+  
+  // Tampilkan detail transaksi yang diterima dari API
+  tampilkanDetailTransaksi(res.data); 
 }
 
 async function prosesWallet(walletData, index, total) {
@@ -93,15 +99,27 @@ async function prosesWallet(walletData, index, total) {
   console.log(`\n🔐 Menjalankan Wallet ${index + 1} dari ${total} - ${wallet.address}`);
   const saldoPrior = await cekSaldoPrior(wallet.address);
 
+  // Klaim faucet hanya jika saldo PRIOR kurang dari minimum, jika gagal tetap lakukan swap
   if (saldoPrior < parseFloat(SALDO_MINIMUM_PRIOR)) {
-    console.log(`⚠️ Saldo PRIOR kurang dari ${SALDO_MINIMUM_PRIOR} untuk wallet ${wallet.address}. Tidak akan melakukan swap.`);
-    return;
+    const faucetBerhasil = await klaimFaucet(wallet.address);
+    if (faucetBerhasil) {
+      console.log('⏳ Faucet berhasil, melanjutkan swap...');
+    } else {
+      console.log('⚠️ Faucet gagal, melanjutkan swap...');
+    }
+  } else {
+    console.log(`💰 Saldo PRIOR mencukupi untuk melakukan swap.`);
   }
 
+  // Eksekusi swap tanpa jeda antara swap
   for (let i = 0; i < JUMLAH_SWAP; i++) {
     await swapToken(wallet.address);
-    await new Promise(r => setTimeout(r, 5000));
   }
+
+  // Menambahkan jeda acak antara 5-10 detik setelah memproses setiap wallet
+  const delay = Math.floor(Math.random() * 5000) + 5000; // 5 detik hingga 10 detik
+  console.log(`⏳ Menunggu selama ${delay / 1000} detik sebelum melanjutkan ke wallet berikutnya...`);
+  await new Promise(r => setTimeout(r, delay));
 }
 
 function tampilkanHitungMundur(ms) {
@@ -129,10 +147,10 @@ async function mulaiBot() {
     for (let i = 0; i < WALLETS.length; i++) {
       await prosesWallet(WALLETS[i], i, WALLETS.length);
       console.log('➡️ Lanjut ke wallet berikutnya...');
-      await new Promise(r => setTimeout(r, 10000));
+      await new Promise(r => setTimeout(r, 10000)); // Menunggu 10 detik antar wallet
     }
     console.log('🕒 Menunggu 24 jam untuk siklus berikutnya...');
-    await tampilkanHitungMundur(24 * 60 * 60 * 1000);
+    await tampilkanHitungMundur(24 * 60 * 60 * 1000); // Menunggu 24 jam
   }
 }
 
