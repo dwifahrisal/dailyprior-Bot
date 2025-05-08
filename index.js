@@ -1,6 +1,7 @@
 require('dotenv').config();
 const axios = require('axios');
 const { ethers } = require('ethers');
+const fs = require('fs');
 
 const API_BASE_URL = 'https://priortestnet.xyz/api';
 const JUMLAH_SWAP = 5;
@@ -9,6 +10,7 @@ const KONTRAK_PRIOR = '0xefc91c5a51e8533282486fa2601dffe0a0b16edb';
 const SALDO_MINIMUM_PRIOR = '0.25';
 const provider = new ethers.JsonRpcProvider('https://sepolia.base.org');
 
+// Read proxies from proxies.txt (no longer necessary, so we can remove it)
 function ambilWallet() {
   if (process.env.WALLETS) {
     return JSON.parse(process.env.WALLETS);
@@ -30,6 +32,14 @@ const headers = {
   'user-agent': 'Mozilla/5.0'
 };
 
+// Remove proxy handling code
+function buatAxiosInstance() {
+  return axios.create({
+    baseURL: API_BASE_URL,
+    headers: headers
+  });
+}
+
 function buatWallet(privateKey) {
   return new ethers.Wallet(privateKey, provider);
 }
@@ -42,20 +52,6 @@ async function cekSaldoPrior(walletAddress) {
   );
   const saldo = await kontrak.balanceOf(walletAddress);
   return parseFloat(ethers.formatUnits(saldo, 18));
-}
-
-async function klaimFaucet(address) {
-  try {
-    const res = await axios.post(`${API_BASE_URL}/faucet/claim`, { address }, { headers });
-    console.log(`✅ Faucet berhasil diklaim untuk alamat: ${address}`);
-    return true;
-  } catch (error) {
-    if (error.response?.status === 400 && error.response?.data?.message.includes('24 hours')) {
-      console.log(`⚠️ Faucet sudah diklaim 24 jam terakhir untuk ${address}`);
-      return false;
-    }
-    throw error;
-  }
 }
 
 function tampilkanDetailTransaksi(data) {
@@ -78,13 +74,16 @@ function tampilkanDetailTransaksi(data) {
 
 async function swapToken(address) {
   const txHash = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
-  const res = await axios.post(`${API_BASE_URL}/swap`, {
+  const axiosInstance = buatAxiosInstance();
+
+  const res = await axiosInstance.post('/swap', {
     address,
     amount: JUMLAH_TOKEN_SWAP,
     tokenFrom: "PRIOR",
     tokenTo: "USDC",
     txHash
-  }, { headers });
+  });
+
   console.log(`🔄 Swap berhasil untuk wallet: ${address} ✅`);
   tampilkanDetailTransaksi(res.data);
 }
@@ -95,8 +94,8 @@ async function prosesWallet(walletData, index, total) {
   const saldoPrior = await cekSaldoPrior(wallet.address);
 
   if (saldoPrior < parseFloat(SALDO_MINIMUM_PRIOR)) {
-    const faucetBerhasil = await klaimFaucet(wallet.address);
-    if (!faucetBerhasil) return;
+    console.log(`⚠️ Saldo PRIOR kurang dari ${SALDO_MINIMUM_PRIOR} untuk wallet ${wallet.address}. Tidak akan melakukan swap.`);
+    return;
   }
 
   for (let i = 0; i < JUMLAH_SWAP; i++) {
