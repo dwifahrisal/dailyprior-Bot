@@ -24,7 +24,8 @@ cd dailyprior-Bot
 
 2. **Install dependency**
 ```bash
-npm install
+npm install axios ethers dotenv https-proxy-agent
+
 ```
 
 3. **Edit file `.env`**
@@ -50,6 +51,11 @@ WALLETS=[
 ```
 
 ---
+
+## UPDATE SUPPORT PROXY
+http://user:pass@1.2.3.4:8080
+http://5.6.7.8:3128
+
 
 ## ▶️ Cara Jalanin Bot
 
